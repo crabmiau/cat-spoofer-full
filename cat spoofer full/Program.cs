@@ -18,6 +18,7 @@ namespace cat_spoofer_full
 {
     internal static class Program
     {
+        public static string keylogin = "";
         public static api auth = new api(
             name: "cat spoofer",
             ownerid: "Gl3ijxUyLM",
@@ -46,7 +47,7 @@ namespace cat_spoofer_full
                 StartSpoofer();
             }
         }
-        private static void CleanUpFiles()
+        public static void CleanUpFiles()
         {
             if (Directory.Exists("C:\\ProgramData\\SoftwareDistribution\\catspooferfiles"))
             {
@@ -84,7 +85,7 @@ namespace cat_spoofer_full
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Program.print("Error: " + ex.Message);
             }
         }
 
@@ -107,7 +108,7 @@ namespace cat_spoofer_full
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Program.print("Error: " + ex.Message);
             }
         }
 
@@ -151,7 +152,7 @@ namespace cat_spoofer_full
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error saving key to file: " + e.Message);
+                Program.print("Error saving key to file: " + e.Message);
             }
         }
         public static void StartSpoofer()
@@ -163,15 +164,17 @@ namespace cat_spoofer_full
                 print("Initializing authentication...");
                 auth.init();
                 Console.Clear();
-                string test = savedKey != null ? savedKey : input("Key: ");
-                auth.license(test);
+                keylogin = savedKey != null ? savedKey : input("Key: ");
+                auth.license(keylogin);
                 if (auth.response.success)
                 {
-                    SaveKeyToFile(test);
+                    SaveKeyToFile(keylogin);
                     Console.Clear();
                     print("[1] One click Apex Legends unban");
                     print("[2] Permanent spoof");
-                    Console.WriteLine("----------------------------------------------------------------");
+                    print("[3] One click Apex Legends unban (TEMP)");
+                    print("[4] Temp spoof");
+                    Program.print("----------------------------------------------------------------");
                     print("[9] Restore serials from a seed");
                     print("[0] Save current serials");
                     string sel = input("Selection: ");
@@ -215,12 +218,48 @@ namespace cat_spoofer_full
                                 Application.Exit();
                             }
                             break;
+                        case "3":
+                            Console.Clear();
+                            string sure2 = input("Are you sure you want to proceed with spoofing process?, Please don't touch anything until the process finishes.    !! We dont take responsibility if anything breaks, have a usb with windows on it just incase. !!\n\n(Y/N): ", 5);
+                            if (sure2.ToLower() == "yes" || sure2.ToLower() == "y")
+                            {
+                                Console.Clear();
+                                if (!SpoofUtils.Spoof.CompareDisks())
+                                {
+                                    MessageBox.Show("Not all of your disks are initialized.", "!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    return;
+                                }
+                                SpoofUtils.Spoof.TempApexSpoof();
+                            }
+                            else
+                            {
+                                Application.Exit();
+                            }
+                            break;
+                        case "4":
+                            Console.Clear();
+                            string sure3 = input("Are you sure you want to proceed with spoofing process?, Please don't touch anything until the process finishes.    !! We dont take responsibility if anything breaks, have a usb with windows on it just incase. !!\n\n(Y/N): ", 5);
+                            if (sure3.ToLower() == "yes" || sure3.ToLower() == "y")
+                            {
+                                Console.Clear();
+                                if (!SpoofUtils.Spoof.CompareDisks())
+                                {
+                                    MessageBox.Show("Not all of your disks are initialized.", "!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    return;
+                                }
+                                SpoofUtils.Spoof.TempSpoof();
+                            }
+                            else
+                            {
+                                Application.Exit();
+                            }
+                            break;
                         case "9":
                             string seed = input("Serial Seed: ");
                             SpoofUtils.Spoof.RestoreSerials(seed);
                             break;
                         case "0":
-                            SpoofUtils.Spoof.SaveSerialsAsync();
+                            SpoofUtils.Spoof.SaveSerials();
                             break;
                         default:
                             print("Invalid selection");
@@ -237,6 +276,7 @@ namespace cat_spoofer_full
             }
             catch (Exception e)
             {
+                MessageBox.Show(e.ToString());
                 CleanUpFiles();
             }
             finally
@@ -265,7 +305,7 @@ namespace cat_spoofer_full
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Error reading key from file: " + e.Message);
+                    Program.print("Error reading key from file: " + e.Message);
                 }
             }
             return null;

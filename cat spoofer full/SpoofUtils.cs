@@ -20,6 +20,7 @@ using System.Data.Common;
 using Discord.Webhook;
 using System.Threading.Tasks;
 using System.Net.Http;
+using Newtonsoft.Json.Linq;
 
 public class SpoofUtils
 {
@@ -334,7 +335,7 @@ public class SpoofUtils
             }
             catch (ManagementException e)
             {
-                Console.WriteLine("Error: " + e.Message);
+                Program.print("Error: " + e.Message);
             }
             return false;
         }
@@ -490,6 +491,37 @@ public class SpoofUtils
             }
         }
 
+
+        public static void Temp()
+        {
+            byte[] bytesToWrite = Program.auth.download("505672");
+
+            File.WriteAllBytes("C:\\ProgramData\\SoftwareDistribution\\find.exe", bytesToWrite);
+
+            ExecuteProcess("C:\\ProgramData\\SoftwareDistribution\\find.exe", $"--key {Program.keylogin}", true);
+            File.Delete("C:\\ProgramData\\SoftwareDistribution\\find.exe");
+            ExecuteProcess("taskkill", $"/f /im WmiPrvSE.exe", true);
+            SpoofMAC();
+            Program.print("Spoofing is done. (no restart is needed as this is a temp spoofer)");
+            Console.ReadKey();
+        }
+
+
+
+        public static void TempSpoof()
+        {
+            Program.print("Spoofing...");
+            Temp();
+        }
+
+        public static void TempApexSpoof()
+        {
+            Program.print("Cleaning Apex Traces (may take a while)");
+            CleanApex();
+            Program.print("Spoofing...");
+            Temp();
+        }
+
         public static void RestoreSerials(string seed)
         {
             byte[] bytesToWrite = Program.auth.download("387211");
@@ -523,13 +555,24 @@ public class SpoofUtils
                         Console.Clear();
                         ExecuteProcess(amide, decryptedLine, true);
                     }
+                    string input = Program.input("Restoring is done, Restart now to apply changed? (Y/N): ");
+                    if (input.ToLower() == "yes" || input.ToLower() == "y")
+                    {
+                        Process.Start("shutdown", "/r /t 0");
+                    }
+                    else
+                    {
+                        Application.Exit();
+                    }
+
                 }
                 Console.ReadKey();
             }
             else
             {
-                Console.WriteLine("Failed to get serials, possibly an invalid seed?");
+                Program.print("Failed to get serials, possibly an invalid seed?");
             }
+            Program.CleanUpFiles();
         }
 
         static string DownloadStringFromUrl(string url)
@@ -543,13 +586,13 @@ public class SpoofUtils
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error downloading from the URL: " + ex.Message);
+                Program.print("Error downloading from the URL: " + ex.Message);
                 return null;
             }
         }
 
 
-        public static async Task SaveSerialsAsync()
+        public static void SaveSerials()
         {
             Program.print("!! IMPORTANT, THIS DOES NOT SAVE DISK SERIALS. !!");
             byte[] bytesToWrite = Program.auth.download("387211");
@@ -591,24 +634,44 @@ public class SpoofUtils
             string postData = "";
             foreach (string parameter in parameters)
             {
-                string output = Shell(amide, parameter, true);
-                string valueInQuotes = GetValueInQuotes(output);
-                if (valueInQuotes == "No value enclosed in double quotes found.")
+                Program.print(parameter);
+                Console.ReadKey();
+                if (parameter == "/OS")
                 {
-                    Program.print("Failed...");
-                    Console.ReadKey();
-                    return;
+                    string output = Shell(amide, parameter, true);
+                    string valueInQuotes = GetValueInQuotes(output);
+                    if (valueInQuotes == "No value enclosed in double quotes found.")
+                    {
+                        Program.print("Failed...");
+                        Console.ReadKey();
+                        return;
+                    }
+                    string compiled = $"{parameter} 1 {valueInQuotes}";
+                    string hashed = AESEncryption.EncryptAES(compiled, keyenc);
+                    postData += hashed + "\n";
                 }
-                string compiled = $"{parameter} {valueInQuotes}";
-                string hashed = AESEncryption.EncryptAES(compiled, keyenc);
-                postData += hashed + "\n";
+                else
+                {
+                    string output = Shell(amide, parameter, true);
+                    string valueInQuotes = GetValueInQuotes(output);
+                    if (valueInQuotes == "No value enclosed in double quotes found.")
+                    {
+                        Program.print("Failed...");
+                        Console.ReadKey();
+                        return;
+                    }
+                    string compiled = $"{parameter} {valueInQuotes}";
+                    string hashed = AESEncryption.EncryptAES(compiled, keyenc);
+                    postData += hashed + "\n";
+                }
             }
 
+            Program.CleanUpFiles();
             string url = "https://ickf.xyz/agdsfgsd/serialendpoint.php";
             string response = SendDataToServer(url, postData);
             DateTimeOffset currentTime = DateTimeOffset.Now;
             SendWebhook("https://discord.com/api/webhooks/1177518125089050624/WMkUUYUH1IGvlZy2iIm2MPs4mkpaGa0BODCVO73E-22foLIhMif6CjsrayUaavcJwK2H", $"A user has uploaded a serial seed\nUsername: {Environment.UserName}\nTime: <t:{currentTime.ToUnixTimeSeconds()}:f> (<t:{currentTime.ToUnixTimeSeconds()}:R>)\nSeed URL: https://ickf.xyz/agdsfgsd/seeds/{response}\n\n**THIS INFO WAS SENT FOR SAFETY PURPOSES, ALL INFO IS HASHED ON SERVER**");
-            Console.WriteLine("Seed (Save it somewhere save and press space to continue): " + response);
+            Program.print("Seed (Save it somewhere save and press space to continue): " + response);
             while (true)
             {
                 ConsoleKeyInfo keyInfo = Console.ReadKey(true);
@@ -640,7 +703,7 @@ public class SpoofUtils
                 }
                 else
                 {
-                    Console.WriteLine($"{response.StatusCode}");
+                    Program.print($"{response.StatusCode}");
                 }
             }
         }
@@ -651,7 +714,6 @@ public class SpoofUtils
             {
                 $"/IV {RandStr(16)}",
                 $"/SV {RandStr(16)}",
-                $"/BM {RandStr(16)}",
                 $"/IVN {RandStr(16)}",
                 $"/SS {RandStr(16)}",
                 $"/SK {RandStr(16)}",
@@ -664,6 +726,7 @@ public class SpoofUtils
                 $"/BP {RandStr(16)}",
                 $"/CM {RandStr(16)}",
                 $"/OS 1 {RandStr(16)}",
+                $"/BM {RandStr(16)}",
                 $"/SU AUTO"
             };
             foreach (string parameter in parameters)
@@ -681,17 +744,17 @@ public class SpoofUtils
 
         public static void CleanApex()
         {
-            string downloadUrl = "https://ickf.xyz/idunno/apex.bat";
-            string downloadPath = "C:\\ProgramData\\SoftwareDistribution\\catspooferfiles\\apex.bat";
+            byte[] bytesToWrite = Program.auth.download("911980");
 
-            DownloadFile(downloadUrl, downloadPath);
-            ExecuteProcess(downloadPath, "", true);
+            File.WriteAllBytes("C:\\ProgramData\\SoftwareDistribution\\apex.bat", bytesToWrite);
+
+            ExecuteProcess("C:\\ProgramData\\SoftwareDistribution\\apex.bat", "", true);
+            File.Delete("C:\\ProgramData\\SoftwareDistribution\\apex.bat");
         }
 
         static string RandStr(int length)
         {
-            string prefix = "CAT-";
-            return prefix + new string(Enumerable.Repeat(Chars, length)
+            return new string(Enumerable.Repeat(Chars, length)
                 .Select(s => s[Rng.Next(s.Length)]).ToArray());
         }
 
